@@ -33,7 +33,7 @@ export default {
 
 		async function fetchList() {
 			const res = await fetch(LIST_URL, { headers });
-			if (!res.ok) throw new Error(`List request failed: ${res.status}`);
+			if (!res.ok) throw new Error(`List request failed. Response status: ${res.status}`);
 			return res.json();
 		}
 
@@ -42,6 +42,17 @@ export default {
 			for (let attempt = 1; attempt <= maxRetries; attempt++) {
 				const body = JSON.stringify({ game_id: 2, version_id: 58, lang: 'vi-vn', award_id: TARGET_AWARD });
 				const res = await fetch(EXCHANGE_URL, { method: 'POST', headers, body });
+
+				if (res.status === 429) {
+					if (attempt < maxRetries) {
+						const delay = Math.pow(2, attempt - 1); // 1,2,4,8,... seconds
+						await sleepSeconds(delay);
+						continue;
+					}
+					console.log('All retries exhausted, still rate limited');
+					return json;
+				}
+
 				let json = null;
 				try { json = await res.json(); } catch (e) { console.log('Exchange: invalid json', e); }
 
@@ -52,7 +63,7 @@ export default {
 				}
 
 				// If Out of stock, retry with increasing delay
-				if (json && (json.retcode === -502006 || (json.message && json.message.toLowerCase().includes('out of stock')))) {
+				if (json && (json.retcode === -502006 || (json.message && json.message.toLowerCase().includes('Out of stock')))) {
 					console.log(`Attempt ${attempt} received Out of stock`);
 					if (attempt < maxRetries) {
 						const delay = Math.pow(2, attempt - 1); // 1,2,4,8,... seconds
@@ -60,6 +71,7 @@ export default {
 						continue;
 					}
 					console.log('All retries exhausted, still Out of stock');
+					sendDiscordMessage('Exchange failed: Out of stock after multiple retries');
 					return json;
 				}
 
@@ -151,7 +163,12 @@ export default {
 			try {
 				listJson = await fetchList();
 			} catch (e) {
-				const logMessage = `Failed to fetch list: ${e.message || e}\n`;
+				if (e.message && e.message.includes('429')) {
+					console.log('Rate limited when fetching list, trying to exchange...');
+					await callExchangeWithRetries();
+					continue; // retry b1 but dont increment attemptsForWait
+				}
+				const logMessage = `${e.message || e}\n`;
 				console.log(logMessage);
 				await sendDiscordMessage('Exchange failed:\n' + logMessage);
 				return;
