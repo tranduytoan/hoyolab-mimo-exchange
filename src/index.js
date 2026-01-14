@@ -14,9 +14,10 @@ export default {
 	},
 
 	async scheduled(event, env, ctx) {
-		const LIST_URL = 'https://sg-public-api.hoyolab.com/event/e2023mimotravel/qiuqiu/exchange_list?game_id=2&version_id=62&lang=vi-vn';
+		const VERSION_ID = Number(env.VERSION_ID);
+		const LIST_URL = `https://sg-public-api.hoyolab.com/event/e2023mimotravel/qiuqiu/exchange_list?game_id=2&version_id=${VERSION_ID}&lang=vi-vn`;
 		const EXCHANGE_URL = 'https://sg-public-api.hoyolab.com/event/e2023mimotravel/qiuqiu/exchange';
-		const TARGET_AWARD = Number(env.TARGET_AWARD) || 30;
+		const TARGET_AWARD = Number(env.TARGET_AWARD);
 		const DISCORD_WEBHOOK_URL = env.DISCORD_WEBHOOK_URL || '';
 		const USER_STATS_API_URL = "https://api-account-os.hoyolab.com/binding/api/getUserGameRolesByLtoken?game_biz=hk4e_global";
 
@@ -40,7 +41,7 @@ export default {
 		async function callExchangeWithRetries() {
 			const maxRetries = 5;
 			for (let attempt = 1; attempt <= maxRetries; attempt++) {
-				const body = JSON.stringify({ game_id: 2, version_id: 62, lang: 'vi-vn', award_id: TARGET_AWARD });
+				const body = JSON.stringify({ game_id: 2, version_id: VERSION_ID, lang: 'vi-vn', award_id: TARGET_AWARD });
 				const res = await fetch(EXCHANGE_URL, { method: 'POST', headers, body });
 
 				if (res.status === 429) {
