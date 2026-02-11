@@ -40,6 +40,7 @@ export default {
 
 		async function callExchangeWithRetries() {
 			const maxRetries = 5;
+			let json = null;
 			for (let attempt = 1; attempt <= maxRetries; attempt++) {
 				const body = JSON.stringify({ game_id: 2, version_id: VERSION_ID, lang: 'vi-vn', award_id: TARGET_AWARD });
 				const res = await fetch(EXCHANGE_URL, { method: 'POST', headers, body });
@@ -54,8 +55,14 @@ export default {
 					return json;
 				}
 
-				let json = null;
 				try { json = await res.json(); } catch (e) { console.log('Exchange: invalid json', e); }
+
+				// error from server's overload -> keep trying until the error disappears.
+				if (json && json.message && json.message.includes("Lỗi mạng, vui lòng thử lại sau~")) {
+					await sleepSeconds(1);
+					attempt--; // retry without incrementing attempt
+					continue;
+				}
 
 				if (json && json.retcode === 0) {
 					console.log('Exchange success', json);
@@ -63,7 +70,7 @@ export default {
 					return json;
 				}
 
-				// If Out of stock, retry with increasing delay
+				// If Out of stock, retry with increasing delay (for cases where stock has not been reset yet)
 				if (json && (json.retcode === -502006 || (json.message && json.message.toLowerCase().includes('Out of stock')))) {
 					console.log(`Attempt ${attempt} received Out of stock`);
 					if (attempt < maxRetries) {
@@ -156,6 +163,21 @@ export default {
 			}
 		}
 
+		async function getTargetAwardFromListJson(listJson) {
+			const message = listJson?.message || '';
+			const awards = (listJson && listJson.data && listJson.data.exchange_award_list) || [];
+			if (awards.length === 0 && message != '') {
+				return { award: null, awardNotFoundMessage: `No awards found in list, response message: ${message}\n` };
+			}
+
+			const award = awards.find((a) => a.award_id === TARGET_AWARD);
+			if (!award) {
+				return { award: null, awardNotFoundMessage: 'Target award not found in list\n' };
+			}
+			return { award: award, awardNotFoundMessage: null };
+		}
+
+
 		// Main flow: b1 / b2 loop
 		let attemptsForWait = 0;
 		const maxWaitAttempts = 5;
@@ -163,7 +185,14 @@ export default {
 			let listJson = null;
 			try {
 				listJson = await fetchList();
+
+				// error from server's overload -> keep trying until the error disappears.
+				if (listJson.message && listJson.message.includes("Lỗi mạng, vui lòng thử lại sau~")) {
+					await sleepSeconds(1);
+					continue; // retry without incrementing attemptsForWait
+				}
 			} catch (e) {
+				// A rate limit means that exchange time is approaching (so many users are checking), try to exchange directly
 				if (e.message && e.message.includes('429')) {
 					console.log('Rate limited when fetching list, trying to exchange...');
 					await callExchangeWithRetries();
@@ -171,24 +200,14 @@ export default {
 				}
 				const logMessage = `${e.message || e}\n`;
 				console.log(logMessage);
-				await sendDiscordMessage('Exchange failed:\n' + logMessage);
+				await sendDiscordMessage('Get list award failed:\n' + logMessage);
 				return;
 			}
 
-			const message = listJson?.message || '';
-			const awards = (listJson && listJson.data && listJson.data.exchange_award_list) || [];
-			if (awards.length === 0 && message != '') {
-				const logMessage = `No awards found in list, response message: ${message}\n`;
-				console.log(logMessage);
-				await sendDiscordMessage('Exchange failed:\n' + logMessage);
-				return;
-			}
-
-			const award = awards.find(a => a.award_id === TARGET_AWARD);
+			const {award, awardNotFoundMessage} = await getTargetAwardFromListJson(listJson);
 			if (!award) {
-				const logMessage = 'Target award not found in list\n';
-				console.log(logMessage);
-				await sendDiscordMessage('Exchange failed:\n' + logMessage);
+				console.log(awardNotFoundMessage);
+				await sendDiscordMessage('Get award-info failed:\n' + awardNotFoundMessage);
 				return;
 			}
 
