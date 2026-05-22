@@ -17,10 +17,9 @@ export default {
 		const VERSION_ID = Number(env.VERSION_ID);
 		const LIST_URL = `https://sg-public-api.hoyolab.com/event/e2023mimotravel/qiuqiu/exchange_list?game_id=2&version_id=${VERSION_ID}&lang=vi-vn`;
 		const EXCHANGE_URL = 'https://sg-public-api.hoyolab.com/event/e2023mimotravel/qiuqiu/exchange';
-		const TARGET_AWARD = Number(env.TARGET_AWARD);
 		const DISCORD_WEBHOOK_URL = env.DISCORD_WEBHOOK_URL || '';
 		const USER_STATS_API_URL = "https://api-account-os.hoyolab.com/binding/api/getUserGameRolesByLtoken?game_biz=hk4e_global";
-
+		let TARGET_AWARD = null;
 
 		const headers = {
 			'Cookie': env.HOYOLAB_COOKIE || '',
@@ -170,10 +169,11 @@ export default {
 				return { award: null, awardNotFoundMessage: `No awards found in list, response message: ${message}\n` };
 			}
 
-			const award = awards.find((a) => a.award_id === TARGET_AWARD);
+			const award = awards.find((a) => a.name.includes("Primogems") || a.name.includes("Nguyên Thạch"));
 			if (!award) {
 				return { award: null, awardNotFoundMessage: 'Target award not found in list\n' };
 			}
+			TARGET_AWARD = award.award_id;
 			return { award: award, awardNotFoundMessage: null };
 		}
 

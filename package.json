@@ -5,6 +5,7 @@
 	"scripts": {
 		"deploy": "wrangler deploy",
 		"dev": "wrangler dev",
+		"dev:scheduled": "node -e \"console.log('Open http://localhost:8787/__scheduled to trigger scheduled jobs');\" && wrangler dev --test-scheduled",
 		"start": "wrangler dev",
 		"test": "vitest"
 	},

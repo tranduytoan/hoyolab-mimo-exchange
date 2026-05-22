@@ -11,7 +11,6 @@
 	},
 	"vars": {
 		"DISCORD_WEBHOOK_URL": "https://discord.com/api/webhooks/1400593467477852413/NBaT9dBJlmOqTS-Zs9lQ_BtYsVpgwHTjAboeHhgDXby6uq1rUSbDJZ1__QdjuHon11U2",
-		"TARGET_AWARD": "32",
-		"VERSION_ID": "65"
+		"VERSION_ID": "66"
 	}
 }
