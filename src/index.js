@@ -10,7 +10,19 @@
 
 export default {
 	async fetch(request, env, ctx) {
-		return new Response('Hello World!');
+		const SHORTLINKS = {
+			'/baocao': 'https://drive.google.com/file/d/1_WBKpifO6mKox3vGHeeEGA5ohO6t7W2b/view?usp=drive_link',
+			'/slide': 'https://example.com/link2',
+			'/demo': 'https://example.com/link3'
+		};
+
+		const url = new URL(request.url);
+		const target = SHORTLINKS[url.pathname];
+		if (target) {
+			return Response.redirect(target, 302);
+		}
+
+		return new Response('Not Found', { status: 404 });
 	},
 
 	async scheduled(event, env, ctx) {
